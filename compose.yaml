@@ -1,0 +1,19 @@
+# Local development database only. Production uses Laravel Cloud's managed Postgres.
+services:
+  pgsql:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pixelforge
+      POSTGRES_USER: pixelforge
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "pixelforge"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgsql-data:
