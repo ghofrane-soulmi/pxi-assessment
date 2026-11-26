@@ -2,15 +2,11 @@
 
 use App\Http\Controllers\GenerationController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome');
-})->name('home');
-
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// The generate form is the app's home. "dashboard" is kept as a name because the
+// starter kit's auth flow redirects there after login, registration and verification.
+Route::redirect('/', '/generations/create')->name('home');
+Route::redirect('dashboard', '/generations/create')->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('generations', [GenerationController::class, 'index'])->name('generations.index');
