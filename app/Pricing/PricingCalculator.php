@@ -50,16 +50,28 @@ final class PricingCalculator
      */
     public static function estimate(string $prompt, string $size, string $quality, int $referenceImageCount, array $rates): PriceEstimate
     {
+        // Characters, not bytes: "é" is one character.
+        return self::estimateForCharacters(mb_strlen($prompt), $size, $quality, $referenceImageCount, $rates);
+    }
+
+    /**
+     * Same as estimate(), from the prompt's length (lets the form ask for a live price
+     * without sending the whole prompt on every keystroke).
+     *
+     * @param  array<string, string>  $rates  current rates (USD per 1M tokens)
+     */
+    public static function estimateForCharacters(int $promptCharacters, string $size, string $quality, int $referenceImageCount, array $rates): PriceEstimate
+    {
         $outputTokens = self::OUTPUT_TOKENS[$quality][$size]
             ?? throw new InvalidArgumentException("Unknown quality/size: {$quality} {$size}");
         [$minReasoning, $maxReasoning] = self::REASONING_TOKENS[$quality];
 
-        if ($referenceImageCount < 0) {
-            throw new InvalidArgumentException('Reference image count cannot be negative');
+        if ($referenceImageCount < 0 || $promptCharacters < 0) {
+            throw new InvalidArgumentException('Counts cannot be negative');
         }
 
-        // Characters, not bytes: "é" is one character. ceil(a / b) in integers is intdiv(a + b - 1, b).
-        $textEstimate = intdiv(mb_strlen($prompt) + self::CHARACTERS_PER_TEXT_TOKEN - 1, self::CHARACTERS_PER_TEXT_TOKEN);
+        // ceil(a / b) in integers is intdiv(a + b - 1, b).
+        $textEstimate = intdiv($promptCharacters + self::CHARACTERS_PER_TEXT_TOKEN - 1, self::CHARACTERS_PER_TEXT_TOKEN);
         $minText = intdiv($textEstimate * (100 - self::TEXT_TOKEN_VARIANCE_PERCENT), 100);       // round down
         $maxText = intdiv($textEstimate * (100 + self::TEXT_TOKEN_VARIANCE_PERCENT) + 99, 100);  // round up
 
