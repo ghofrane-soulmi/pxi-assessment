@@ -5,6 +5,7 @@ use App\Pixelforge\Exceptions\PixelforgeException;
 use App\Pixelforge\Exceptions\RejectedException;
 use App\Pixelforge\Exceptions\RetryLaterException;
 use App\Pixelforge\PixelforgeClient;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -19,7 +20,7 @@ beforeEach(function () {
     ]);
 });
 
-function errorResponse(int $status, string $code, array $headers = []): \GuzzleHttp\Promise\PromiseInterface
+function errorResponse(int $status, string $code, array $headers = []): PromiseInterface
 {
     return Http::response(['error' => ['type' => 'x', 'code' => $code, 'message' => "Pixelforge says {$code}"]], $status, $headers);
 }

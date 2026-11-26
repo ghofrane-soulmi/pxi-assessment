@@ -5,6 +5,7 @@ use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
 use App\Pixelforge\ApplyGenerationUpdate;
 use App\Pixelforge\PixelforgeClient;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Support\Facades\Http;
 
@@ -22,7 +23,7 @@ function runSubmitJob(Generation $generation): SubmitGeneration
     return $job;
 }
 
-function pixelforgeError(int $status, string $code, array $headers = []): \GuzzleHttp\Promise\PromiseInterface
+function pixelforgeError(int $status, string $code, array $headers = []): PromiseInterface
 {
     return Http::response(['error' => ['type' => 'x', 'code' => $code, 'message' => "Pixelforge says {$code}"]], $status, $headers);
 }
