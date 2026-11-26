@@ -89,21 +89,48 @@ it('does nothing if the generation was already accepted', function () {
     Http::assertNothingSent();
 });
 
-it('fails without charge once the retry window is over', function () {
-    (new SubmitGeneration($this->generation))->failed(new MaxAttemptsExceededException('timed out'));
+describe('when the retry window is over', function () {
+    it('fails without charge if Pixelforge is still busy', function () {
+        Http::fake(['pixelforge.test/*' => pixelforgeError(429, 'concurrency_limit_exceeded', ['Retry-After' => '5'])]);
 
-    $this->generation->refresh();
-    expect($this->generation->status)->toBe(GenerationStatus::Failed)
-        ->and($this->generation->error_code)->toBe('not_submitted')
-        ->and($this->generation->charge_nanos)->toBe(0);
-});
+        (new SubmitGeneration($this->generation))->failed(new MaxAttemptsExceededException('timed out'));
 
-it('does not fail a generation that was accepted in the meantime', function () {
-    $this->generation->forceFill(['status' => GenerationStatus::Succeeded])->save();
+        $this->generation->refresh();
+        expect($this->generation->status)->toBe(GenerationStatus::Failed)
+            ->and($this->generation->error_code)->toBe('not_submitted')
+            ->and($this->generation->charge_nanos)->toBe(0);
+    });
 
-    (new SubmitGeneration($this->generation))->failed(null);
+    it('picks up a generation Pixelforge created during a timed-out attempt', function () {
+        // The same Idempotency-Key returns the existing (already finished) generation.
+        Http::fake(['pixelforge.test/*' => Http::response(pixelforgeGeneration(), 202, ['Idempotent-Replayed' => 'true'])]);
 
-    expect($this->generation->refresh()->status)->toBe(GenerationStatus::Succeeded);
+        (new SubmitGeneration($this->generation))->failed(new MaxAttemptsExceededException('timed out'));
+
+        $this->generation->refresh();
+        expect($this->generation->status)->toBe(GenerationStatus::Succeeded)
+            ->and($this->generation->provider_cost_nanos)->toBe(169_080_000)
+            ->and($this->generation->charge_nanos)->toBe(211_350_000);
+        Http::assertSent(fn ($request) => $request->hasHeader('Idempotency-Key', $this->generation->id));
+    });
+
+    it('uses Pixelforge\'s reason if the final check is rejected', function () {
+        Http::fake(['pixelforge.test/*' => pixelforgeError(400, 'content_policy_violation')]);
+
+        (new SubmitGeneration($this->generation))->failed(null);
+
+        expect($this->generation->refresh()->error_code)->toBe('content_policy_violation');
+    });
+
+    it('leaves a generation that was accepted in the meantime alone', function () {
+        Http::fake();
+        $this->generation->forceFill(['status' => GenerationStatus::Succeeded])->save();
+
+        (new SubmitGeneration($this->generation))->failed(null);
+
+        expect($this->generation->refresh()->status)->toBe(GenerationStatus::Succeeded);
+        Http::assertNothingSent();
+    });
 });
 
 it('gives up retrying after 10 minutes', function () {

@@ -66,8 +66,30 @@ class SubmitGeneration implements ShouldQueue
     /** Called by the queue once the 10 minutes are up, or after repeated unexpected errors. */
     public function failed(?Throwable $exception): void
     {
+        $apply = app(ApplyGenerationUpdate::class);
+
+        if ($this->generation->fresh()?->status !== GenerationStatus::Pending) {
+            return; // accepted in the meantime (e.g. by a webhook): don't touch it
+        }
+
+        // An earlier attempt may have timed out AFTER Pixelforge created the generation.
+        // Re-sending the same Idempotency-Key is a safe lookup: it returns the existing
+        // generation without creating or billing another. Without this check we could
+        // mark it failed (free) while Pixelforge bills us for it.
+        try {
+            $apply->apply($this->generation, app(PixelforgeClient::class)->createGeneration($this->generation));
+
+            return;
+        } catch (RejectedException $e) {
+            $this->markFailed($apply, $e->errorCode, $e->getMessage());
+
+            return;
+        } catch (PixelforgeException) {
+            // Still unreachable or busy: nothing we can confirm, give up below.
+        }
+
         $this->markFailed(
-            app(ApplyGenerationUpdate::class),
+            $apply,
             'not_submitted',
             'Pixelforge is busy right now. Please try again in a few minutes. You were not charged.',
         );
