@@ -3,7 +3,7 @@ services:
   pgsql:
     image: postgres:17
     ports:
-      - "5432:5432"
+      - "5433:5432" # 5433 on the host to avoid clashing with other local Postgres instances
     environment:
       POSTGRES_DB: pixelforge
       POSTGRES_USER: pixelforge
