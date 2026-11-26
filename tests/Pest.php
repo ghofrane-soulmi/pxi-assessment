@@ -41,7 +41,38 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A Pixelforge generation object as the API returns it. Defaults to the
+ * docs' succeeded example: cost $0.169080000.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function pixelforgeGeneration(array $overrides = []): array
 {
-    // ..
+    return array_replace([
+        'id' => 'gen_123',
+        'object' => 'generation',
+        'status' => 'succeeded',
+        'prompt' => 'a red fox',
+        'size' => '1024x1024',
+        'quality' => 'medium',
+        'reference_images' => [],
+        'metadata' => [],
+        'image_url' => 'https://pixelforge.test/images/gen_123.png',
+        'usage' => [
+            'input_text_tokens' => 41,
+            'input_image_tokens' => 0,
+            'output_tokens' => 3300,
+            'reasoning_tokens' => 2950,
+        ],
+        'rates' => [
+            'input_text_tokens' => '5.00',
+            'input_image_tokens' => '10.00',
+            'output_tokens' => '40.00',
+            'reasoning_tokens' => '12.50',
+        ],
+        'error' => null,
+        'completed_at' => '2026-11-26T12:00:30Z',
+    ], $overrides);
 }
